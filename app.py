@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 # ----------------------------
 # 🎨 COLOR PALETTE
@@ -45,69 +46,113 @@ filtered_df = df[
 ]
 
 # ----------------------------
-# KPI METRICS (WITH COLOR LOGIC)
+# ADD DERIVED METRICS
+# ----------------------------
+filtered_df["Efficiency"] = (
+    filtered_df["Yield(tons)"] / filtered_df["Water_Usage(cubic meters)"]
+)
+
+# ----------------------------
+# KPI METRICS
 # ----------------------------
 st.subheader("📈 KPI Summary")
 
 avg_yield = filtered_df["Yield(tons)"].mean()
 avg_water = filtered_df["Water_Usage(cubic meters)"].mean()
 avg_area = filtered_df["Farm_Area(acres)"].mean()
+avg_efficiency = filtered_df["Efficiency"].mean()
 
-col1, col2, col3 = st.columns(3)
+col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    color = "green" if avg_yield > 30 else "orange" if avg_yield > 15 else "red"
     st.metric("Yield (tons)", round(avg_yield, 2))
 
 with col2:
-    color = "red" if avg_water > 80000 else "orange" if avg_water > 60000 else "green"
     st.metric("Water Usage", round(avg_water, 2))
 
 with col3:
     st.metric("Farm Area", round(avg_area, 2))
+
+with col4:
+    st.metric("Efficiency", round(avg_efficiency, 6))
 
 # ----------------------------
 # VISUAL ANALYSIS
 # ----------------------------
 st.subheader("📊 Visual Analysis")
 
-# Layout in columns (more professional)
 col1, col2 = st.columns(2)
 
-# Yield Chart
+# ----------------------------
+# Yield Trend (Meaningful X-axis)
+# ----------------------------
 with col1:
-    st.markdown("### 🌿 Yield Trend")
+    st.markdown("### 🌿 Yield by Farm")
 
     fig1, ax1 = plt.subplots()
-    ax1.plot(
-        filtered_df["Yield(tons)"].values,
-        color=COLORS["green"],
-        linewidth=2
+
+    ax1.bar(
+        filtered_df["Crop_Type"],  # meaningful category
+        filtered_df["Yield(tons)"],
+        color=COLORS["green"]
     )
-    ax1.set_xlabel("Records")
+
+    ax1.set_xlabel("Crop Type")
     ax1.set_ylabel("Yield (tons)")
-    ax1.grid(True, linestyle="--", alpha=0.5)
+    ax1.tick_params(axis='x', rotation=45)
+    ax1.grid(True, axis="y", linestyle="--", alpha=0.5)
 
     st.pyplot(fig1)
 
-# Water Usage Chart
+# ----------------------------
+# Water vs Yield Relationship
+# ----------------------------
 with col2:
-    st.markdown("### 💧 Water Usage")
+    st.markdown("### 💧 Water vs Yield")
 
     fig2, ax2 = plt.subplots()
-    ax2.bar(
-        range(len(filtered_df)),
+
+    ax2.scatter(
         filtered_df["Water_Usage(cubic meters)"],
+        filtered_df["Yield(tons)"],
         color=COLORS["blue"]
     )
-    ax2.set_xlabel("Records")
-    ax2.set_ylabel("Water Usage")
-    ax2.grid(True, axis="y", linestyle="--", alpha=0.5)
+
+    ax2.set_xlabel("Water Usage")
+    ax2.set_ylabel("Yield (tons)")
+    ax2.grid(True)
 
     st.pyplot(fig2)
 
 # ----------------------------
-# ADD INSIGHT SECTION (VERY IMPORTANT)
+# CORRELATION HEATMAP
+# ----------------------------
+st.subheader("🔥 Correlation Heatmap")
+
+fig3, ax3 = plt.subplots()
+
+sns.heatmap(
+    filtered_df.corr(numeric_only=True),
+    annot=True,
+    cmap="coolwarm",
+    ax=ax3
+)
+
+st.pyplot(fig3)
+
+# ----------------------------
+# TOP PERFORMERS
+# ----------------------------
+st.subheader("🏆 Top Performing Farms")
+
+top_farms = filtered_df.sort_values(
+    by="Yield(tons)", ascending=False
+).head(5)
+
+st.dataframe(top_farms)
+
+# ----------------------------
+# INSIGHTS
 # ----------------------------
 st.subheader("🧠 Insights")
 
@@ -116,7 +161,7 @@ if avg_yield > 30:
 elif avg_yield > 15:
     st.warning("Moderate yield. There is room for improvement.")
 else:
-    st.error("Low yield detected. Investigate farming practices.")
+    st.error("Low yield detected.")
 
 if avg_water > 80000:
     st.error("High water usage detected.")
@@ -130,4 +175,4 @@ else:
 # ----------------------------
 if st.checkbox("Show Raw Data"):
     st.subheader("📄 Raw Dataset")
-    st.write(df)
+    st.dataframe(df.style.background_gradient(cmap="Greens"))
